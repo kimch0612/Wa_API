@@ -10,6 +10,23 @@ import requests
 
 dotenv.load_dotenv()
 
+request_headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/71.0.3578.98 Safari/537.36",
+    "Content-Type": "application/x-www-form-urlencoded"
+}
+
+logistics_urls = {
+    "Customs": "https://unipass.customs.go.kr:38010/ext/rest/cargCsclPrgsInfoQry/retrieveCargCsclPrgsInfo?crkyCn=%s&blYy=%s&hblNo=%s", # 통관
+    "CJ": "https://trace.cjlogistics.com/next/rest/selectTrackingWaybil.do",                                                           # 대한통운 기본 운송장 정보 조회
+    "CJ_status": "https://trace.cjlogistics.com/next/rest/selectTrackingDetailList.do",                                                # 대한통운 배송 정보 상세 조회                       
+    "Hanjin": "https://www.hanjin.com/kor/CMS/DeliveryMgr/WaybillResult.do?mCode=MN038&wblnum=%s&schLang=KR",                          # 한진택배
+    "KoreaPost": "https://service.epost.go.kr/trace.RetrieveDomRigiTraceList.comm?sid1=%s",                                            # 우체국택배
+    "Logen": "https://www.ilogen.com/web/personal/trace/%s",                                                                           # 로젠택배
+    "Lotte": "https://www.lotteglogis.com/mobile/reservation/tracking/linkView?InvNo=%s"                                               # 롯데택배
+}
+
 def message_logistics(message, room, sender):
     if message.startswith("!택배") or message.startswith("!ㅌㅂ"):
         return message_logistics_main(message)
@@ -22,7 +39,7 @@ def message_custom_tracker(message):
         message = message.replace("!통관", "").replace("!ㅌㄱ", "").replace(" ", "")
         key = os.environ["CUSTOM_API_KEY"]
         year = datetime.date.today().year
-        url = "https://unipass.customs.go.kr:38010/ext/rest/cargCsclPrgsInfoQry/retrieveCargCsclPrgsInfo?crkyCn=%s&blYy=%s&hblNo=%s" % (key, year, message)
+        url = logistics_urls["Customs"] % (key, year, message)
         result = requests.get(url)
         soup = BeautifulSoup(result.text, "xml")
         name = soup.find("prnm")
@@ -68,15 +85,9 @@ def message_logistics_parser(message):
 
 def message_logistics_parser_cj(message):
     try:
-        request_headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                          "AppleWebKit/537.36 (KHTML, like Gecko) "
-                          "Chrome/71.0.3578.98 Safari/537.36",
-            "Content-Type": "application/x-www-form-urlencoded"
-        }
         post_data = {"wblNo": message}
-        str_url_info = "https://trace.cjlogistics.com/next/rest/selectTrackingWaybil.do"
-        request_response = requests.post(str_url_info, headers=request_headers, data=post_data)
+        logistics_url_info = logistics_urls["CJ"]
+        request_response = requests.post(logistics_url_info, headers=request_headers, data=post_data)
         if request_response.status_code != 200 or not request_response.json().get("data"): return ""
         tracking_data = request_response.json()["data"]
         sndr_nm = (tracking_data.get("sndrNm") or "").strip() or "(정보 없음)"
@@ -85,8 +96,8 @@ def message_logistics_parser_cj(message):
         qty = (tracking_data.get("qty") or "").strip() or "(정보 없음)"
         acpr_nm = (tracking_data.get("acprNm") or "").strip() or "(정보 없음)"
         
-        str_url_status = "https://trace.cjlogistics.com/next/rest/selectTrackingDetailList.do"
-        request_response = requests.post(str_url_status, headers=request_headers, data=post_data)
+        logistics_url_status = logistics_urls["CJ_status"]
+        request_response = requests.post(logistics_url_status, headers=request_headers, data=post_data)
         status_info = "현재 집하되지 않은 택배입니다."
         if (request_response.status_code == 200 and
             request_response.json().get("data") and
@@ -118,14 +129,9 @@ def message_logistics_parser_hanjin(message):
     temp = ""
     try:
         if not message.isdigit(): raise TypeError
-        request_headers = {
-            "User-Agent" : ("Mozilla/5.0 (Windows NT 10.0;Win64; x64)\
-            AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98\
-            Safari/537.36")
-        }
-        str_url = "https://www.hanjin.com/kor/CMS/DeliveryMgr/WaybillResult.do?mCode=MN038&wblnum=" + message + "&schLang=KR"
+        logistics_url = logistics_urls["Hanjin"] % (message)
         request_session = requests.Session()
-        request_response = request_session.get(str_url, headers = request_headers, verify=certifi.where())
+        request_response = request_session.get(logistics_url, headers = request_headers, verify=certifi.where())
         soup = BeautifulSoup(request_response.text, "html.parser")
         while True:
             info = soup.select("#delivery-wr > div > div.waybill-tbl > table > tbody > tr:nth-child(%d)" % i)
@@ -150,13 +156,9 @@ def message_logistics_parser_koreapost(message):
     temp = ""
     try:
         if not message.isdigit(): raise TypeError
-        request_headers = {
-        "User-Agent" : ("Mozilla/5.0 (Windows NT 10.0;Win64; x64)\
-        AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98\
-        Safari/537.36"), }
-        str_url = "https://service.epost.go.kr/trace.RetrieveDomRigiTraceList.comm?sid1=" + message
+        logistics_url = logistics_urls["KoreaPost"] % (message)
         request_session = requests.Session()
-        request_response = request_session.get(str_url, headers = request_headers, verify=certifi.where())
+        request_response = request_session.get(logistics_url, headers = request_headers, verify=certifi.where())
         soup = BeautifulSoup(request_response.text, "html.parser")
         while True:
             info = soup.select("#processTable > tbody > tr:nth-child(%d)" % i)
@@ -181,13 +183,9 @@ def message_logistics_parser_logen(message):
     try:
         if not message.isdigit():
             raise TypeError
-        request_headers = {
-        "User-Agent" : ("Mozilla/5.0 (Windows NT 10.0;Win64; x64)\
-        AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98\
-        Safari/537.36"), }
-        str_url = "https://www.ilogen.com/web/personal/trace/" + message
+        logistics_url =  logistics_urls["Logen"] % (message)
         request_session = requests.Session()
-        request_response = request_session.get(str_url, headers = request_headers, verify=certifi.where())
+        request_response = request_session.get(logistics_url, headers = request_headers, verify=certifi.where())
         soup = BeautifulSoup(request_response.text, "html.parser")
         while True:
             info = soup.select("body > div.contents.personal.tkSearch > section > div > div.tab_container > div > table.data.tkInfo > tbody > tr:nth-child(%d)" % i)
@@ -215,13 +213,9 @@ def message_logistics_parser_lotte(message):
     try:
         if not message.isdigit():
             raise TypeError
-        request_headers = {
-        "User-Agent" : ("Mozilla/5.0 (Windows NT 10.0;Win64; x64)\
-        AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98\
-        Safari/537.36"), }
-        str_url = "https://www.lotteglogis.com/mobile/reservation/tracking/linkView?InvNo=" + message
+        logistics_url = logistics_urls["Lotte"] % (message)
         request_session = requests.Session()
-        request_response = request_session.get(str_url, headers = request_headers, verify=certifi.where())
+        request_response = request_session.get(logistics_url, headers = request_headers, verify=certifi.where())
         soup = BeautifulSoup(request_response.text, "html.parser")
         info = soup.find("div", "scroll_date_table")
         for tag in info:
