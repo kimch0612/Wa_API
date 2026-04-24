@@ -220,22 +220,27 @@ def message_logistics_parser_logen(message) -> str | None:
         return None
 
 def message_logistics_parser_lotte(message) -> str | None:
-    temp = ""
     try:
-        if not message.isdigit():
-            raise TypeError
         logistics_url = logistics_urls["Lotte"] % (message)
         request_session = requests.Session()
-        request_response = request_session.get(logistics_url, headers = request_headers, verify=certifi.where())
+        request_response = request_session.get(logistics_url, headers=request_headers, verify=certifi.where())
         soup = BeautifulSoup(request_response.text, "html.parser")
+
         info = soup.find("div", "scroll_date_table")
-        for tag in info:
-            temp += tag.get_text()
-        infom = temp.split("\n")
-        for _ in range(len(infom)):
-            infom[_] = infom[_].replace("\t", "").replace("\r", "").replace(" ", "").replace(u"\xa0", "")
+        if not info:
+            return None
+            
+        temp = info.get_text()
+        remove_chars = str.maketrans("", "", "\t\r \xa0")
+        infom = [line.translate(remove_chars) for line in temp.split("\n")]
         infom = [v for v in infom if v]
+        
+        if len(infom) < 9:
+            return None
+
         infom[6] = infom[6][:10] + " " + infom[6][10:]
+        
         return f"/// 롯데택배 배송조회 ///\n\n단계: {infom[5]}\n시간: {infom[6]}\n현위치: {infom[7]}\n처리현황: {infom[8]}"
-    except (TypeError, IndexError):
+
+    except (TypeError, ValueError, IndexError, AttributeError):
         return None
