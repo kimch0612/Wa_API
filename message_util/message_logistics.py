@@ -18,13 +18,13 @@ request_headers = {
 }
 
 logistics_urls = {
-    "Customs": "https://unipass.customs.go.kr:38010/ext/rest/cargCsclPrgsInfoQry/retrieveCargCsclPrgsInfo?crkyCn=%s&blYy=%s&hblNo=%s", # 통관
-    "CJ": "https://trace.cjlogistics.com/next/rest/selectTrackingWaybil.do",                                                           # 대한통운 기본 운송장 정보 조회
-    "CJ_status": "https://trace.cjlogistics.com/next/rest/selectTrackingDetailList.do",                                                # 대한통운 배송 정보 상세 조회                       
-    "Hanjin": "https://www.hanjin.com/kor/CMS/DeliveryMgr/WaybillResult.do?mCode=MN038&wblnum=%s&schLang=KR",                          # 한진택배
-    "KoreaPost": "https://service.epost.go.kr/trace.RetrieveDomRigiTraceList.comm?sid1=%s",                                            # 우체국택배
-    "Logen": "https://www.ilogen.com/web/personal/trace/%s",                                                                           # 로젠택배
-    "Lotte": "https://www.lotteglogis.com/mobile/reservation/tracking/linkView?InvNo=%s"                                               # 롯데택배
+    "Customs":      "https://unipass.customs.go.kr:38010/ext/rest/cargCsclPrgsInfoQry/retrieveCargCsclPrgsInfo?crkyCn=%s&blYy=%s&hblNo=%s", # 통관
+    "CJ":           "https://trace.cjlogistics.com/next/rest/selectTrackingWaybil.do",                                                      # 대한통운 기본 운송장 정보 조회
+    "CJ_status":    "https://trace.cjlogistics.com/next/rest/selectTrackingDetailList.do",                                                  # 대한통운 배송 정보 상세 조회                       
+    "Hanjin":       "https://www.hanjin.com/kor/CMS/DeliveryMgr/WaybillResult.do?mCode=MN038&wblnum=%s&schLang=KR",                         # 한진택배
+    "KoreaPost":    "https://service.epost.go.kr/trace.RetrieveDomRigiTraceList.comm?sid1=%s",                                              # 우체국택배
+    "Logen":        "https://www.ilogen.com/web/personal/trace/%s",                                                                         # 로젠택배
+    "Lotte":        "https://www.lotteglogis.com/mobile/reservation/tracking/linkView?InvNo=%s"                                             # 롯데택배
 }
 
 def message_logistics(message, room, sender):
@@ -54,17 +54,12 @@ def message_logistics_main(message):
     message = message.replace("!택배", "").replace("!ㅌㅂ", "").replace(" ", "")
 
     if message == "":
-        return "///택배 운송장조회 사용 방법///\\m사용 예시: !택배[운송장번호]\nex)!택배1234567890\n지원중인 택배사: 우체국택배, 대한통운(CJ, 대통), 로젠택배, 롯데택배, 한진택배\n만약 통관 중인 택배라면 우선적으로 통관 상황을 조회합니다."
+        return "///택배 운송장조회 사용 방법///\\m사용 예시: !택배[운송장번호]\nex)!택배1234567890\n지원중인 택배사: 우체국택배, 대한통운(CJ, 대통), 로젠택배, 롯데택배, 한진택배"
 
-    str_message = message_custom_tracker(message)
+    str_message = message_logistics_parser(message)
+
     if "존재하지 않는 운송장" in str_message:
-        str_message = message_logistics_parser(message)
-    else:
-        tmp_message = message_logistics_parser(message)
-        if "존재하지 않는 운송장" in tmp_message:
-            str_message = f"{str_message}\\m현재 택배사에 인계되지 않은 화물입니다."
-        else:
-            str_message = f"{str_message}\\m{tmp_message}"
+        str_message = "현재 택배사에 인계되지 않은 화물입니다."
 
     return str_message
 
