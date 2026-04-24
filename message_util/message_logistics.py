@@ -70,9 +70,12 @@ def message_logistics_parser(message) -> str | None:
                 message_logistics_parser_logen,
                 message_logistics_parser_lotte]
 
-    for parser in logistics:
-        str_message = parser(message)
-        if str_message: return str_message
+    try:
+        for parser in logistics:
+            str_message = parser(message)
+            if str_message: return str_message
+    except Exception as e:
+        print(f"General exception occured in message_logistics_parser..: {e}")
 
     return None
 
