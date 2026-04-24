@@ -34,7 +34,7 @@ def message_logistics(message, room, sender):
         return message_custom_tracker(message)
     return None
 
-def message_custom_tracker(message):
+def message_custom_tracker(message) -> str:
     try:
         message = message.replace("!통관", "").replace("!ㅌㄱ", "").replace(" ", "")
         key = os.environ["CUSTOM_API_KEY"]
@@ -50,7 +50,7 @@ def message_custom_tracker(message):
     except (TypeError, AttributeError):
         return "존재하지 않는 운송장번호이거나 잘못된 형식 혹은 아직 입항하지 않은 화물입니다.\\m사용법: !통관 123456789"
 
-def message_logistics_main(message):
+def message_logistics_main(message) -> str:
     message = message.replace("!택배", "").replace("!ㅌㅂ", "").replace(" ", "")
 
     if message == "":
@@ -58,12 +58,12 @@ def message_logistics_main(message):
 
     str_message = message_logistics_parser(message)
 
-    if "존재하지 않는 운송장" in str_message:
-        str_message = "현재 택배사에 인계되지 않은 화물입니다."
+    if not str_message:
+        return "존재하지 않는 운송장번호이거나 잘못된 형식 혹은 아직 수거되지 않은 화물입니다.\\m사용법: !택배[운송장번호]\nex)!택배1234567890\n지원중인 택배사: 우체국택배, 대한통운(CJ, 대통), 로젠택배, 롯데택배, 한진택배"
 
     return str_message
 
-def message_logistics_parser(message):
+def message_logistics_parser(message) -> str | None:
     logistics = [message_logistics_parser_cj,
                 message_logistics_parser_hanjin,
                 message_logistics_parser_koreapost,
@@ -74,9 +74,7 @@ def message_logistics_parser(message):
         str_message = parser(message)
         if str_message: return str_message
 
-    str_message = "미집하된 택배이거나 존재하지 않는 운송장 번호입니다.\\m사용 예시: !택배[운송장번호]\nex)!택배1234567890\n지원중인 택배사: 우체국택배, 대한통운(CJ, 대통), 로젠택배, 롯데택배, 한진택배"
-
-    return str_message
+    return None
 
 def message_logistics_parser_cj(message):
     try:
