@@ -51,15 +51,21 @@ def message_custom_tracker(message) -> str:
         return "존재하지 않는 운송장번호이거나 잘못된 형식 혹은 아직 입항하지 않은 화물입니다.\\m사용법: !통관 123456789"
 
 def message_logistics_main(message) -> str:
+    common_message = [
+        "///택배 운송장조회 사용 방법///\\m사용 예시: !택배[운송장번호]\nex)!택배1234567890\n지원중인 택배사: 우체국택배, 대한통운(CJ, 대통), 로젠택배, 롯데택배, 한진택배",
+        "존재하지 않는 운송장번호이거나 잘못된 형식 혹은 아직 수거되지 않은 화물입니다.\\m사용법: !택배[운송장번호]\nex)!택배1234567890\n지원중인 택배사: 우체국택배, 대한통운(CJ, 대통), 로젠택배, 롯데택배, 한진택배"
+    ]
     message = message.replace("!택배", "").replace("!ㅌㅂ", "").replace(" ", "")
 
     if message == "":
-        return "///택배 운송장조회 사용 방법///\\m사용 예시: !택배[운송장번호]\nex)!택배1234567890\n지원중인 택배사: 우체국택배, 대한통운(CJ, 대통), 로젠택배, 롯데택배, 한진택배"
+        return common_message[0]
+    elif not message.isdigit():
+        return common_message[1]
 
     str_message = message_logistics_parser(message)
 
     if not str_message:
-        return "존재하지 않는 운송장번호이거나 잘못된 형식 혹은 아직 수거되지 않은 화물입니다.\\m사용법: !택배[운송장번호]\nex)!택배1234567890\n지원중인 택배사: 우체국택배, 대한통운(CJ, 대통), 로젠택배, 롯데택배, 한진택배"
+        return common_message[1]
 
     return str_message
 
@@ -143,6 +149,7 @@ def message_logistics_parser_hanjin(message) -> str | None:
         request_session = requests.Session()
         request_response = request_session.get(logistics_url, headers = request_headers, verify=certifi.where())
         soup = BeautifulSoup(request_response.text, "html.parser")
+
         while True:
             info = soup.select("#delivery-wr > div > div.waybill-tbl > table > tbody > tr:nth-child(%d)" % i)
             if not info:
@@ -151,6 +158,7 @@ def message_logistics_parser_hanjin(message) -> str | None:
                     temp += tag.get_text()
                 break
             i = i+1
+
         infom = temp.split("\n")
         for _ in range(len(infom)):
             if infom[7] == "":
