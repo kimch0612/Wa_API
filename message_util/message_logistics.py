@@ -38,16 +38,20 @@ def message_logistics(message, room, sender):
 def message_custom_tracker(message) -> str:
     try:
         message = message.replace("!통관", "").replace("!ㅌㄱ", "").replace(" ", "")
+
         key = os.environ["CUSTOM_API_KEY"]
         year = datetime.date.today().year
-        url = logistics_urls["Customs"] % (key, year, message)
-        result = requests.get(url)
+        result = requests.get(logistics_urls["Customs"] % (key, year, message)) # 통관 조회에선 message가 isdigit인지 검사하지 않음
+
         soup = BeautifulSoup(result.text, "xml")
-        name = soup.find("prnm")
-        customs_name = soup.find("etprCstm")
-        status = soup.find("prgsStts")
-        process_time = datetime.datetime.strptime(str(soup.find("prcsDttm").text), "%Y%m%d%H%M%S").strftime("%Y.%m.%d %H:%M:%S")
+        name = soup.find("prnm")                # 품명
+        customs_name = soup.find("etprCstm")    # 입항세관
+        status = soup.find("prgsStts")          # 통관진행상태
+        process_time = datetime.datetime.strptime(str(soup.find("prcsDttm").text), # 처리일시
+                                                  "%Y%m%d%H%M%S").strftime("%Y.%m.%d %H:%M:%S")
+
         return f"/// 관세청 UNIPASS 통관 조회 ///\n\n품명: {name.text}\n입항세관: {customs_name.text}\n통관진행상태: {status.text}\n처리일시: {process_time}"
+    
     except (TypeError, AttributeError):
         return "존재하지 않는 운송장번호이거나 잘못된 형식 혹은 아직 입항하지 않은 화물입니다.\\m사용법: !통관 123456789"
 
@@ -110,6 +114,7 @@ def message_logistics_parser_cj(message) -> str | None:
         logistics_url_info = logistics_urls["CJ"] # 운송장 기본 정보 조회 (받는사람, 보내는사람, 상품명 등)
         request_response = requests.post(logistics_url_info, headers=request_headers, data=post_data)
         if request_response.status_code != 200 or not request_response.json().get("data"): return None
+
         tracking_data = request_response.json()["data"]
         sndr_nm = (tracking_data.get("sndrNm") or "").strip() or "(정보 없음)"      # 보낸 사람 이름
         rcvr_nm = (tracking_data.get("rcvrNm") or "").strip() or "(정보 없음)"      # 받는 사람 이름
@@ -160,12 +165,23 @@ def message_logistics_parser_hanjin(message) -> str | None:
             temp = info[-1].get_text()
         
         infom = temp.split("\n")
+
+        """
+        infom[0] = 운송장번호
+        infom[1] = 날짜
+        infom[2] = 시간
+        infom[3] = 상품위치
+        infom[4] = 배송 진행상황
+        infom[5] = 배송 진행상황 상세
+        infom[6] = 인수자
+        infom[7] = 전화번호
+        """
         
         if len(infom) > 7 and not infom[7]:
             infom[7] = "(정보 없음)"
 
-        goods_name = soup.select_one("#delivery-wr > div > table > tbody > tr > td:nth-child(1)")
-        goods_name = goods_name.get_text().strip() if goods_name else ""
+        goods_name_raw = soup.select_one("#delivery-wr > div > table > tbody > tr > td:nth-child(1)")
+        goods_name = goods_name_raw.get_text().strip() if goods_name_raw else ""
 
         return f"/// 한진택배 배송조회 ///\n\n상품명: {goods_name}\n날짜: {infom[1]}\n시간: {infom[2]}\n상품위치: {infom[3]}\n배송 진행상황: {infom[5]}\n전화번호: {infom[7]}"
 
@@ -185,6 +201,15 @@ def message_logistics_parser_koreapost(message) -> str | None:
             
         temp = rows[-1].get_text()
         infom = [line.replace("\t", "") for line in temp.split("\n")]
+
+        """
+        infom[0] = 운송장번호
+        infom[1] = 날짜
+        infom[2] = 시간
+        infom[3] = 발생국
+        infom[4] = 처리장소
+        infom[5] = 처리현황
+        """
 
         if len(infom) > 5: # TODO: 접수 혹은 수거 상태의 운송장번호를 입수하면 그때 정확한 데이터를 보고 올바르게 파싱하게 해야 됨
             if infom[5] == "": 
@@ -210,6 +235,15 @@ def message_logistics_parser_logen(message) -> str | None:
             
         temp_text = rows[-1].get_text()
         infom = [line.replace("\t", "") for line in temp_text.split("\n") if line.replace("\t", "")]
+
+        """
+        infom[0] = 날짜
+        infom[1] = 사업장
+        infom[2] = 배송상태
+        infom[3] = 배송내용
+        infom[4] = 처리장소
+        infom[5] = 인수자 혹은 배달 예정 시간
+        """
 
         if len(infom) < 4:
             return None
@@ -241,6 +275,14 @@ def message_logistics_parser_lotte(message) -> str | None:
         remove_chars = str.maketrans("", "", "\t\r \xa0")
         infom = [line.translate(remove_chars) for line in temp.split("\n")]
         infom = [v for v in infom if v]
+
+        """
+        infom[0~4] = 테이블 헤더 (날짜, 시간, 단계, 현위치, 처리현황 등)
+        infom[5] = 단계
+        infom[6] = 시간 (날짜 포함)
+        infom[7] = 현위치
+        infom[8] = 처리현황
+        """
         
         if len(infom) < 9:
             return None
