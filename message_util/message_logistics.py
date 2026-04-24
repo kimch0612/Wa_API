@@ -2,6 +2,7 @@ from bs4 import BeautifulSoup
 
 import datetime
 import os
+import time
 
 import certifi
 import dotenv
@@ -81,18 +82,24 @@ def message_logistics_parser(message) -> str | None:
     had_exception = False
 
     for parser in logistics:
-        try:
-            result = parser(message)
-            if result:
-                return result
-        except Exception as e:
-            had_exception = True
-            print(
-                f"[message_logistics_parser] Unexpected exception in "
-                f"{parser.__name__!r} ({type(e).__name__}): {e}"
-            )
+        for attempt in range(3): # 오류 발생 시 3회까지 재시도
+            try:
+                result = parser(message)
+                if result: return result
+                break
+            except Exception as e:
+                if attempt < 2:
+                    time.sleep(1)
+                    continue
+                had_exception = True
+                print(
+                    f"[message_logistics_parser] Unexpected exception in "
+                    f"{parser.__name__!r} (Attempt {attempt + 1}) ({type(e).__name__}): {e}"
+                )
+                break
 
-    if had_exception: # 5개의 택배사 모두 조회에 실패한 상태에서 오류가 발생한 경우
+    # 5개의 택배사 모두 조회에 실패한 상태에서 작업에 오류가 발생한 기록이 있는 경우
+    if had_exception:
         return "운송장 조회 중 오류가 발생했습니다.\n잠시 후 다시 시도해주세요."
 
     return None
