@@ -166,29 +166,28 @@ def message_logistics_parser_hanjin(message) -> str | None:
         return None
 
 def message_logistics_parser_koreapost(message) -> str | None:
-    i = 1
-    temp = ""
     try:
-        if not message.isdigit(): raise TypeError
         logistics_url = logistics_urls["KoreaPost"] % (message)
         request_session = requests.Session()
-        request_response = request_session.get(logistics_url, headers = request_headers, verify=certifi.where())
+        request_response = request_session.get(logistics_url, headers=request_headers, verify=certifi.where())
         soup = BeautifulSoup(request_response.text, "html.parser")
-        while True:
-            info = soup.select("#processTable > tbody > tr:nth-child(%d)" % i)
-            if not info:
-                info = soup.select("#processTable > tbody > tr:nth-child(%d)" % int(i-1))
-                for tag in info:
-                    temp += tag.get_text()
-                break
-            i = i+1
-        infom = temp.split("\n")
-        for _ in range(len(infom)):
-            if "\t" in infom[_]: infom[_] = infom[_].replace("\t", "")
-        if infom[5] == "": infom[5] = "접수"
-        if infom[5] == "            ": infom[5] = "배달준비"
+
+        rows = soup.select("#processTable > tbody > tr")
+        if not rows:
+            return None
+            
+        temp = rows[-1].get_text()
+        infom = [line.replace("\t", "") for line in temp.split("\n")]
+
+        if len(infom) > 5: # TODO: 접수 혹은 수거 상태의 운송장번호를 입수하면 그때 정확한 데이터를 보고 올바르게 파싱하게 해야 됨
+            if infom[5] == "": 
+                infom[5] = "접수"
+            elif infom[5] == "            ":
+                infom[5] = "배달준비"
+
         return f"/// 우체국택배 배송조회 ///\n\n날짜: {infom[1]}\n시간: {infom[2]}\n발생국: {infom[3]}\n처리현황: {infom[5]}"
-    except (TypeError, IndexError):
+
+    except (TypeError, ValueError, IndexError, AttributeError):
         return None
 
 def message_logistics_parser_logen(message) -> str | None:
