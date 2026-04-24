@@ -59,7 +59,7 @@ def message_logistics_main(message) -> str:
 
     if message == "":
         return common_message[0]
-    elif not message.isdigit():
+    elif not message.isdigit(): # 추후 EMS 등 알파벳이 섞이는 서비스도 조회할거면 비활성화 필요함
         return common_message[1]
 
     str_message = message_logistics_parser(message)
@@ -141,32 +141,28 @@ def message_logistics_parser_cj(message) -> str | None:
         return None
 
 def message_logistics_parser_hanjin(message) -> str | None:
-    i = 1
     temp = ""
     try:
-        if not message.isdigit(): raise TypeError
         logistics_url = logistics_urls["Hanjin"] % (message)
         request_session = requests.Session()
-        request_response = request_session.get(logistics_url, headers = request_headers, verify=certifi.where())
+        request_response = request_session.get(logistics_url, headers=request_headers, verify=certifi.where())
         soup = BeautifulSoup(request_response.text, "html.parser")
 
-        while True:
-            info = soup.select("#delivery-wr > div > div.waybill-tbl > table > tbody > tr:nth-child(%d)" % i)
-            if not info:
-                info = soup.select("#delivery-wr > div > div.waybill-tbl > table > tbody > tr:nth-child(%d)" % int(i-1))
-                for tag in info:
-                    temp += tag.get_text()
-                break
-            i = i+1
-
+        info = soup.select("#delivery-wr > div > div.waybill-tbl > table > tbody > tr")
+        if info:
+            temp = info[-1].get_text()
+        
         infom = temp.split("\n")
-        for _ in range(len(infom)):
-            if infom[7] == "":
-                infom[7] = "(정보 없음)"
-        goods_name = soup.select("#delivery-wr > div > table > tbody > tr > td:nth-child(1)")
-        goods_name = goods_name[0].get_text().strip()
+        
+        if len(infom) > 7 and not infom[7]:
+            infom[7] = "(정보 없음)"
+
+        goods_name = soup.select_one("#delivery-wr > div > table > tbody > tr > td:nth-child(1)")
+        goods_name = goods_name.get_text().strip() if goods_name else ""
+
         return f"/// 한진택배 배송조회 ///\n\n상품명: {goods_name}\n날짜: {infom[1]}\n시간: {infom[2]}\n상품위치: {infom[3]}\n배송 진행상황: {infom[5]}\n전화번호: {infom[7]}"
-    except (TypeError, IndexError):
+
+    except (TypeError, IndexError, AttributeError):
         return None
 
 def message_logistics_parser_koreapost(message) -> str | None:
