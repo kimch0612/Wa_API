@@ -76,15 +76,16 @@ def message_logistics_parser(message) -> str | None:
             if str_message: return str_message
     except Exception as e:
         print(f"General exception occured in message_logistics_parser..: {e}")
+        return "운송장 조회 중 오류가 발생했습니다.\n잠시 후 다시 시도해주세요."
 
     return None
 
-def message_logistics_parser_cj(message):
+def message_logistics_parser_cj(message) -> str | None:
     try:
         post_data = {"wblNo": message}
         logistics_url_info = logistics_urls["CJ"]
         request_response = requests.post(logistics_url_info, headers=request_headers, data=post_data)
-        if request_response.status_code != 200 or not request_response.json().get("data"): return ""
+        if request_response.status_code != 200 or not request_response.json().get("data"): return None
         tracking_data = request_response.json()["data"]
         sndr_nm = (tracking_data.get("sndrNm") or "").strip() or "(정보 없음)"
         rcvr_nm = (tracking_data.get("rcvrNm") or "").strip() or "(정보 없음)"
@@ -118,9 +119,9 @@ def message_logistics_parser_cj(message):
             f"{status_info}"
         )
     except (TypeError, IndexError):
-        return ""
+        return None
 
-def message_logistics_parser_hanjin(message):
+def message_logistics_parser_hanjin(message) -> str | None:
     i = 1
     temp = ""
     try:
@@ -145,9 +146,9 @@ def message_logistics_parser_hanjin(message):
         goods_name = goods_name[0].get_text().strip()
         return f"/// 한진택배 배송조회 ///\n\n상품명: {goods_name}\n날짜: {infom[1]}\n시간: {infom[2]}\n상품위치: {infom[3]}\n배송 진행상황: {infom[5]}\n전화번호: {infom[7]}"
     except (TypeError, IndexError):
-        return ""
+        return None
 
-def message_logistics_parser_koreapost(message):
+def message_logistics_parser_koreapost(message) -> str | None:
     i = 1
     temp = ""
     try:
@@ -171,9 +172,9 @@ def message_logistics_parser_koreapost(message):
         if infom[5] == "            ": infom[5] = "배달준비"
         return f"/// 우체국택배 배송조회 ///\n\n날짜: {infom[1]}\n시간: {infom[2]}\n발생국: {infom[3]}\n처리현황: {infom[5]}"
     except (TypeError, IndexError):
-        return ""
+        return None
 
-def message_logistics_parser_logen(message):
+def message_logistics_parser_logen(message) -> str | None:
     i = 1
     temp = ""
     try:
@@ -202,9 +203,9 @@ def message_logistics_parser_logen(message):
             temp = "\n배달 예정 시간: " + infom[5]
         return f"/// 로젠택배 배송조회 ///\n\n날짜: {infom[0]}\n사업장: {infom[1]}\n배송상태: {infom[2]}\n배송내용: {infom[3]}" + temp
     except (TypeError, IndexError):
-        return ""
+        return None
 
-def message_logistics_parser_lotte(message):
+def message_logistics_parser_lotte(message) -> str | None:
     temp = ""
     try:
         if not message.isdigit():
@@ -223,4 +224,4 @@ def message_logistics_parser_lotte(message):
         infom[6] = infom[6][:10] + " " + infom[6][10:]
         return f"/// 롯데택배 배송조회 ///\n\n단계: {infom[5]}\n시간: {infom[6]}\n현위치: {infom[7]}\n처리현황: {infom[8]}"
     except (TypeError, IndexError):
-        return ""
+        return None
