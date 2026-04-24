@@ -64,18 +64,29 @@ def message_logistics_main(message) -> str:
     return str_message
 
 def message_logistics_parser(message) -> str | None:
-    logistics = [message_logistics_parser_cj,
-                message_logistics_parser_hanjin,
-                message_logistics_parser_koreapost,
-                message_logistics_parser_logen,
-                message_logistics_parser_lotte]
+    logistics = [
+        message_logistics_parser_cj,
+        message_logistics_parser_hanjin,
+        message_logistics_parser_koreapost,
+        message_logistics_parser_logen,
+        message_logistics_parser_lotte,
+    ]
 
-    try:
-        for parser in logistics:
-            str_message = parser(message)
-            if str_message: return str_message
-    except Exception as e:
-        print(f"General exception occured in message_logistics_parser..: {e}")
+    had_exception = False
+
+    for parser in logistics:
+        try:
+            result = parser(message)
+            if result:
+                return result
+        except Exception as e:
+            had_exception = True
+            print(
+                f"[message_logistics_parser] Unexpected exception in "
+                f"{parser.__name__!r} ({type(e).__name__}): {e}"
+            )
+
+    if had_exception: # 5개의 택배사 모두 조회에 실패한 상태에서 오류가 발생한 경우
         return "운송장 조회 중 오류가 발생했습니다.\n잠시 후 다시 시도해주세요."
 
     return None
@@ -83,19 +94,20 @@ def message_logistics_parser(message) -> str | None:
 def message_logistics_parser_cj(message) -> str | None:
     try:
         post_data = {"wblNo": message}
-        logistics_url_info = logistics_urls["CJ"]
+        logistics_url_info = logistics_urls["CJ"] # 운송장 기본 정보 조회 (받는사람, 보내는사람, 상품명 등)
         request_response = requests.post(logistics_url_info, headers=request_headers, data=post_data)
         if request_response.status_code != 200 or not request_response.json().get("data"): return None
         tracking_data = request_response.json()["data"]
-        sndr_nm = (tracking_data.get("sndrNm") or "").strip() or "(정보 없음)"
-        rcvr_nm = (tracking_data.get("rcvrNm") or "").strip() or "(정보 없음)"
-        goods_nm = (tracking_data.get("repGoodsNm") or "").strip() or "(정보 없음)"
-        qty = (tracking_data.get("qty") or "").strip() or "(정보 없음)"
-        acpr_nm = (tracking_data.get("acprNm") or "").strip() or "(정보 없음)"
+        sndr_nm = (tracking_data.get("sndrNm") or "").strip() or "(정보 없음)"      # 보낸 사람 이름
+        rcvr_nm = (tracking_data.get("rcvrNm") or "").strip() or "(정보 없음)"      # 받는 사람 이름
+        goods_nm = (tracking_data.get("repGoodsNm") or "").strip() or "(정보 없음)" # 상품명
+        qty = (tracking_data.get("qty") or "").strip() or "(정보 없음)"             # 수량
+        acpr_nm = (tracking_data.get("acprNm") or "").strip() or "(정보 없음)"      # 인수자
         
-        logistics_url_status = logistics_urls["CJ_status"]
+        logistics_url_status = logistics_urls["CJ_status"] # 운송장 배송 정보 조회 (배송상태, 처리장소 등)
         request_response = requests.post(logistics_url_status, headers=request_headers, data=post_data)
         status_info = "현재 집하되지 않은 택배입니다."
+
         if (request_response.status_code == 200 and
             request_response.json().get("data") and
             request_response.json()["data"].get("svcOutList")):
@@ -110,6 +122,7 @@ def message_logistics_parser_cj(message) -> str | None:
                 f"{'인수자' if '인수자' in ((latest_status.get('patnBranNm') or '').strip() or '(정보 없음)') else '상대장소'}: "
                 f"{(latest_status.get('patnBranNm') or '').strip() or '(정보 없음)'}"
             )
+            
         return (
             f"/// CJ대한통운 배송조회 ///\n\n"
             f"송화인: {sndr_nm}\n"
