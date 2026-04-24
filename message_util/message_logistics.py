@@ -191,34 +191,32 @@ def message_logistics_parser_koreapost(message) -> str | None:
         return None
 
 def message_logistics_parser_logen(message) -> str | None:
-    i = 1
-    temp = ""
     try:
-        if not message.isdigit():
-            raise TypeError
-        logistics_url =  logistics_urls["Logen"] % (message)
+        logistics_url = logistics_urls["Logen"] % (message)
         request_session = requests.Session()
-        request_response = request_session.get(logistics_url, headers = request_headers, verify=certifi.where())
+        request_response = request_session.get(logistics_url, headers=request_headers, verify=certifi.where())
         soup = BeautifulSoup(request_response.text, "html.parser")
-        while True:
-            info = soup.select("body > div.contents.personal.tkSearch > section > div > div.tab_container > div > table.data.tkInfo > tbody > tr:nth-child(%d)" % i)
-            if not info:
-                info = soup.select("body > div.contents.personal.tkSearch > section > div > div.tab_container > div > table.data.tkInfo > tbody > tr:nth-child(%d)" % int(i-1))
-                for tag in info:
-                    temp += tag.get_text()
-                break
-            i = i+1
-        infom = temp.split("\n")
-        for _ in range(len(infom)):
-            if "\t" in infom[_]: infom[_] = infom[_].replace("\t", "")
-        infom = [v for v in infom if v]
+
+        rows = soup.select("body > div.contents.personal.tkSearch > section > div > div.tab_container > div > table.data.tkInfo > tbody > tr")
+        if not rows:
+            return None
+            
+        temp_text = rows[-1].get_text()
+        infom = [line.replace("\t", "") for line in temp_text.split("\n") if line.replace("\t", "")]
+
+        if len(infom) < 4:
+            return None
+
         temp = ""
-        if "전달" in infom[3]:
-            temp = "\n인수자: " + infom[5]
-        elif "배달 준비" in infom[3]:
-            temp = "\n배달 예정 시간: " + infom[5]
-        return f"/// 로젠택배 배송조회 ///\n\n날짜: {infom[0]}\n사업장: {infom[1]}\n배송상태: {infom[2]}\n배송내용: {infom[3]}" + temp
-    except (TypeError, IndexError):
+        if len(infom) > 5:
+            if "전달" in infom[3]:
+                temp = f"\n인수자: {infom[5]}"
+            elif "배달 준비" in infom[3]:
+                temp = f"\n배달 예정 시간: {infom[5]}"
+
+        return f"/// 로젠택배 배송조회 ///\n\n날짜: {infom[0]}\n사업장: {infom[1]}\n배송상태: {infom[2]}\n배송내용: {infom[3]}{temp}"
+
+    except (TypeError, ValueError, IndexError, AttributeError):
         return None
 
 def message_logistics_parser_lotte(message) -> str | None:
